@@ -11,6 +11,13 @@ A Visual Studio Code extension for visualising and editing YAML-based threat mod
 - **Draft workflow** — Create new threats, security objectives, and attackers via `[+]` buttons on root headings. Drafts are staged in the editor panel before being inserted into the YAML.
 - **Collapse all** — Quickly collapse the entire explorer tree.
 
+## Installation
+
+1. Download the latest `tmexp.vsix` file from the [GitHub Releases](../../releases) page.
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **Extensions: Install from VSIX...**.
+3. Select the downloaded `.vsix` file.
+4. Reload VS Code when prompted.
+
 ## Getting Started
 
 1. Install the extension.
