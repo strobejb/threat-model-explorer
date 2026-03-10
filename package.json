@@ -3,6 +3,10 @@
   "displayName": "Threat Model Explorer",
   "description": "Threat Model Explorer Extension for Visual Studio Code",
   "version": "0.9.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strobejb/tmexp"
+  },
   "engines": {
     "vscode": "^1.98.0"
   },
@@ -18,12 +22,12 @@
         "title": "Threat Summary"
       },
       {
-				"command": "tmexp.refresh",
-				"title": "Refresh",
-				"icon": {
-					"light": "resources/light/refresh.svg",
-					"dark": "resources/dark/refresh.svg"
-				}
+        "command": "tmexp.refresh",
+        "title": "Refresh",
+        "icon": {
+          "light": "resources/light/refresh.svg",
+          "dark": "resources/dark/refresh.svg"
+        }
       },
       {
         "command": "tmexp.newThreat",
@@ -32,7 +36,7 @@
           "light": "resources/light/new-threat.svg",
           "dark": "resources/dark/new-threat.svg"
         }
-			},
+      },
       {
         "command": "tmexp.newSecurityObjective",
         "title": "New Security Objective",
@@ -99,16 +103,16 @@
           "when": "view == tmexpExplorer",
           "group": "navigation@1"
         },
-				{
-					"command": "tmexp.refresh",
-					"when": "view == tmexpExplorer",
+        {
+          "command": "tmexp.refresh",
+          "when": "view == tmexpExplorer",
           "group": "navigation@2"
         },
         {
           "command": "tmexp.collapseAll",
           "when": "view == tmexpExplorer",
           "group": "navigation@3"
-				}
+        }
       ]
     }
   },
@@ -121,15 +125,16 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.98.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.98.0",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
-    "eslint": "^9.21.0",
-    "typescript": "^5.7.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3"
   },
   "dependencies": {
     "yaml": "^2.8.1"
