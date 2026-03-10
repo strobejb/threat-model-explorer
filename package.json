@@ -1,0 +1,137 @@
+{
+  "name": "tmexp",
+  "displayName": "Threat Model Explorer",
+  "description": "Threat Model Explorer Extension for Visual Studio Code",
+  "version": "0.9.1",
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tmexp.threatSummary",
+        "title": "Threat Summary"
+      },
+      {
+				"command": "tmexp.refresh",
+				"title": "Refresh",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
+      },
+      {
+        "command": "tmexp.newThreat",
+        "title": "New Threat",
+        "icon": {
+          "light": "resources/light/new-threat.svg",
+          "dark": "resources/dark/new-threat.svg"
+        }
+			},
+      {
+        "command": "tmexp.newSecurityObjective",
+        "title": "New Security Objective",
+        "icon": {
+          "light": "resources/light/new-threat.svg",
+          "dark": "resources/dark/new-threat.svg"
+        }
+      },
+      {
+        "command": "tmexp.newAttacker",
+        "title": "New Attacker",
+        "icon": {
+          "light": "resources/light/new-threat.svg",
+          "dark": "resources/dark/new-threat.svg"
+        }
+      },
+      {
+        "command": "tmexp.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "tmexpExplorer",
+          "name": "Threat Model Explorer",
+          "icon": "resources/dark/refresh.svg"
+        },
+        {
+          "id": "tmexpThreatEditorView",
+          "name": "Threat Editor",
+          "type": "webview",
+          "icon": "resources/dark/refresh.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "tmexp.refresh",
+          "group": "navigation",
+          "when": "view == tmexpExplorer"
+        },
+        {
+          "command": "tmexp.newThreat",
+          "when": "view == tmexpExplorer && viewItem == root-threat",
+          "group": "inline"
+        },
+        {
+          "command": "tmexp.newSecurityObjective",
+          "when": "view == tmexpExplorer && viewItem == root-securityObjective",
+          "group": "inline"
+        },
+        {
+          "command": "tmexp.newAttacker",
+          "when": "view == tmexpExplorer && viewItem == root-attacker",
+          "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "tmexp.newThreat",
+          "when": "view == tmexpExplorer",
+          "group": "navigation@1"
+        },
+				{
+					"command": "tmexp.refresh",
+					"when": "view == tmexpExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "tmexp.collapseAll",
+          "when": "view == tmexpExplorer",
+          "group": "navigation@3"
+				}
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.98.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}
