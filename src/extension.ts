@@ -3,6 +3,9 @@
 import * as vscode from 'vscode';
 
 import * as explr from './explorer';
+import { ThreatModelPreviewService } from './preview';
+
+const CAN_PREVIEW_CONTEXT_KEY = 'tmexp.canPreviewThreatModel';
 
 
 // This method is called when your extension is activated
@@ -12,6 +15,26 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "tmexp" is now active!');
 
 	const customTreeDataProvider = new explr.YAMLTreeDataProvider();
+	const previewService = new ThreatModelPreviewService();
+	let syncedPreviewSelection: explr.YAMLTreeItem | undefined;
+
+	const refreshSyncedPreview = (): void => {
+		if (!previewService.isSyncedPreviewActive()) {
+			return;
+		}
+		previewService.refreshSyncedPreview();
+	};
+
+	const updatePreviewContext = async (editor?: vscode.TextEditor): Promise<void> => {
+		if (!editor) {
+			await vscode.commands.executeCommand('setContext', CAN_PREVIEW_CONTEXT_KEY, false);
+			return;
+		}
+
+		const fsPath = editor.document.uri.fsPath;
+		const canPreview = customTreeDataProvider.canPreviewFile(fsPath);
+		await vscode.commands.executeCommand('setContext', CAN_PREVIEW_CONTEXT_KEY, canPreview);
+	};
 
 	/**
 	 * Register custom explorer 
@@ -40,18 +63,31 @@ export function activate(context: vscode.ExtensionContext) {
 		void customTreeDataProvider.revealTreeItem(item);
 		customTreeDataProvider.openEntityEditor(item);
 	});
+	const previewCommand = vscode.commands.registerCommand('tmexp.preview', async (item?: explr.YAMLTreeItem) => {
+		syncedPreviewSelection = item ?? treeView.selection[0];
+		const target = customTreeDataProvider.getPreviewTarget(previewService, syncedPreviewSelection);
+		if (!target) {
+			vscode.window.showInformationMessage('No threat model data available to preview.');
+			return;
+		}
+
+		await previewService.openSyncedPreview(() => customTreeDataProvider.getPreviewTarget(previewService, syncedPreviewSelection));
+	});
 
 	const selectionListener = treeView.onDidChangeSelection((event) => {
 		if (customTreeDataProvider.isRevealSelection()) {
 			return;
 		}
 		const selected = event.selection[0];
+		syncedPreviewSelection = selected;
 		if (!selected) {
+			refreshSyncedPreview();
 			return;
 		}
 
 		void customTreeDataProvider.revealTreeItem(selected);
 		customTreeDataProvider.openEntityEditor(selected);
+		refreshSyncedPreview();
 	});
 
 	customTreeDataProvider.setTreeView(treeView);
@@ -59,6 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Track the active YAML file — switch the explorer when the user changes tabs
 	const activeEditorListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
 		if (customTreeDataProvider.isEditorSwitchSuppressed()) {
+			void updatePreviewContext(editor);
 			return;
 		}
 		if (!editor) {
@@ -66,6 +103,9 @@ export function activate(context: vscode.ExtensionContext) {
 			if (vscode.window.visibleTextEditors.length === 0) {
 				customTreeDataProvider.clear();
 			}
+			void updatePreviewContext(editor);
+			syncedPreviewSelection = undefined;
+			refreshSyncedPreview();
 			return;
 		}
 		const fsPath = editor.document.uri.fsPath;
@@ -74,6 +114,9 @@ export function activate(context: vscode.ExtensionContext) {
 		} else {
 			customTreeDataProvider.clear();
 		}
+		void updatePreviewContext(editor);
+		syncedPreviewSelection = undefined;
+		refreshSyncedPreview();
 	});
 
 	// Also sync to whatever is already open at activation time
@@ -83,16 +126,26 @@ export function activate(context: vscode.ExtensionContext) {
 			customTreeDataProvider.setActiveFile(fsPath);
 		}
 	}
+	void updatePreviewContext(vscode.window.activeTextEditor);
+	refreshSyncedPreview();
 
 	const textChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
 		if (event.document.uri.fsPath === customTreeDataProvider.getActiveFile()) {
 			customTreeDataProvider.handleYamlSourceChanged();
+			refreshSyncedPreview();
+			if (vscode.window.activeTextEditor?.document.uri.fsPath === event.document.uri.fsPath) {
+				void updatePreviewContext(vscode.window.activeTextEditor);
+			}
 		}
 	});
 
 	const saveListener = vscode.workspace.onDidSaveTextDocument((document) => {
 		if (document.uri.fsPath === customTreeDataProvider.getActiveFile()) {
 			customTreeDataProvider.handleYamlSourceChanged();
+			refreshSyncedPreview();
+			if (vscode.window.activeTextEditor?.document.uri.fsPath === document.uri.fsPath) {
+				void updatePreviewContext(vscode.window.activeTextEditor);
+			}
 		}
 	});
 
@@ -100,11 +153,19 @@ export function activate(context: vscode.ExtensionContext) {
 	const fileWatcherChangeListener = fileWatcher.onDidChange((uri) => {
 		if (uri.fsPath === customTreeDataProvider.getActiveFile()) {
 			customTreeDataProvider.handleYamlSourceChanged();
+			refreshSyncedPreview();
+			if (vscode.window.activeTextEditor?.document.uri.fsPath === uri.fsPath) {
+				void updatePreviewContext(vscode.window.activeTextEditor);
+			}
 		}
 	});
 	const fileWatcherCreateListener = fileWatcher.onDidCreate((uri) => {
 		if (uri.fsPath === customTreeDataProvider.getActiveFile()) {
 			customTreeDataProvider.handleYamlSourceChanged();
+			refreshSyncedPreview();
+			if (vscode.window.activeTextEditor?.document.uri.fsPath === uri.fsPath) {
+				void updatePreviewContext(vscode.window.activeTextEditor);
+			}
 		}
 	});
 
@@ -117,13 +178,15 @@ export function activate(context: vscode.ExtensionContext) {
 		newAttackerCommand,
 		collapseAllCommand,
 		revealCommand,
+		previewCommand,
 		selectionListener,
 		activeEditorListener,
 		textChangeListener,
 		saveListener,
 		fileWatcher,
 		fileWatcherChangeListener,
-		fileWatcherCreateListener
+		fileWatcherCreateListener,
+		previewService
 	);
 }
 

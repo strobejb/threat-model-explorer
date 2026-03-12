@@ -12,6 +12,7 @@ import {
   ThreatEditorPayload,
   ThreatModelEditorPayload
 } from './panel/types';
+import { PreviewTarget, ThreatModelPreviewService, toPreviewAnchorId } from './preview';
 
 type TreeItemCategory = 'threat' | 'securityObjective' | 'attacker' | 'model' | 'other';
 
@@ -534,6 +535,89 @@ class YAMLTreeDataProvider implements vscode.TreeDataProvider<YAMLTreeItem>, vsc
     return this.workspaceRoot;
   }
 
+  hasActiveThreatModel(): boolean {
+    return Boolean(this.workspaceRoot && this.model && this.tmDoc);
+  }
+
+  canPreviewFile(filePath: string): boolean {
+    if (!filePath || !(filePath.endsWith('.yaml') || filePath.endsWith('.yml'))) {
+      return false;
+    }
+
+    if (this.modelsByPath.has(filePath)) {
+      return true;
+    }
+
+    return this.isThreatModelFile(filePath);
+  }
+
+  getPreviewTarget(previewService: ThreatModelPreviewService, selectedItem?: YAMLTreeItem): PreviewTarget | null {
+    const item = selectedItem ?? this.getActivePreviewItem();
+    const model = this.resolveModelForPreview(item);
+    if (!model) {
+      return null;
+    }
+
+    const modelPreview = previewService.createModelPreviewData(model);
+
+    if (item?.category === 'threat') {
+      const entityMap = this.getEntityMap(item.item);
+      if (entityMap) {
+        const threat = previewService.createThreatPreviewData(this.toRecord(entityMap));
+        return {
+          kind: 'threat',
+          model: modelPreview,
+          threat
+        };
+      }
+    }
+
+    const threats = Array.isArray(model.threats)
+      ? model.threats.map((threat) => previewService.createThreatPreviewData(this.toRecord(threat)))
+      : [];
+
+    return {
+      kind: 'model',
+      model: modelPreview,
+      threats
+    };
+  }
+
+  getPreviewAnchorId(selectedItem?: YAMLTreeItem): string | undefined {
+    const item = selectedItem ?? this.getActivePreviewItem();
+    if (!item) {
+      if (this.model?.ID) {
+        return toPreviewAnchorId(this.model.ID);
+      }
+      return undefined;
+    }
+
+    if (item.category === 'threat') {
+      const entityMap = this.getEntityMap(item.item);
+      if (entityMap) {
+        const id = entityMap.get('ID');
+        const title = entityMap.get('title');
+        if (typeof id === 'string' && id.trim().length > 0) {
+          return toPreviewAnchorId(id);
+        }
+        if (typeof title === 'string' && title.trim().length > 0) {
+          return toPreviewAnchorId(title);
+        }
+      }
+    }
+
+    if (item.nodeKind === 'model' && item.modelNode) {
+      const modelId = item.modelNode.model.ID || item.modelNode.model.title || item.modelNode.id;
+      return toPreviewAnchorId(modelId);
+    }
+
+    if (this.model?.ID) {
+      return toPreviewAnchorId(this.model.ID);
+    }
+
+    return undefined;
+  }
+
   refresh(): void {
     console.log('refresh');
     this.parsedCache.clear();
@@ -573,7 +657,12 @@ class YAMLTreeDataProvider implements vscode.TreeDataProvider<YAMLTreeItem>, vsc
       const uri = vscode.Uri.file(item.modelNode.filePath);
       this.editorSwitchSuppressCount++;
       try {
-        await vscode.window.showTextDocument(uri, { preview: false });
+        const existingEditor = vscode.window.visibleTextEditors.find(editor => editor.document.uri.fsPath === item.modelNode?.filePath);
+        if (existingEditor) {
+          await vscode.window.showTextDocument(existingEditor.document, existingEditor.viewColumn, false);
+        } else {
+          await vscode.window.showTextDocument(uri, { preview: true, preserveFocus: false });
+        }
       } finally {
         this.editorSwitchSuppressCount--;
       }
@@ -620,10 +709,18 @@ class YAMLTreeDataProvider implements vscode.TreeDataProvider<YAMLTreeItem>, vsc
     const endPosition = this.offsetToPosition(endOffset);
     const selectionRange = new vscode.Range(position, endPosition);
     const uri = vscode.Uri.file(this.workspaceRoot);
+    const existingEditor = vscode.window.visibleTextEditors.find(editor => editor.document.uri.fsPath === this.workspaceRoot);
+
+    if (existingEditor) {
+      existingEditor.selection = new vscode.Selection(selectionRange.start, selectionRange.end);
+      existingEditor.revealRange(selectionRange, vscode.TextEditorRevealType.InCenter);
+      return;
+    }
+
     this.editorSwitchSuppressCount++;
     try {
       const editor = await vscode.window.showTextDocument(uri, {
-        preview: false,
+        preview: true,
         preserveFocus,
         selection: selectionRange
       });
@@ -1414,6 +1511,44 @@ class YAMLTreeDataProvider implements vscode.TreeDataProvider<YAMLTreeItem>, vsc
     }
 
     return new vscode.Position(line, character);
+  }
+
+  private getActivePreviewItem(): YAMLTreeItem | undefined {
+    if (this.activeEntityKind === 'threat' && this.activeEntityMap) {
+      return new YAMLTreeItem(this.activeEntityLabel, vscode.TreeItemCollapsibleState.None, [], this.activeEntityMap, 'map', 'threat');
+    }
+
+    return undefined;
+  }
+
+  private resolveModelForPreview(item?: YAMLTreeItem): tmlib.ThreatModel | null {
+    if (item?.modelFilePath) {
+      const modelNode = this.modelsByPath.get(item.modelFilePath);
+      if (modelNode) {
+        return modelNode.model;
+      }
+
+      try {
+        return this.parseAndCache(item.modelFilePath).model;
+      } catch {
+        return null;
+      }
+    }
+
+    return this.model ?? null;
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> {
+    if (!value) {
+      return {};
+    }
+
+    if (YAML.isMap(value) || YAML.isSeq(value) || YAML.isScalar(value)) {
+      const asJson = value.toJSON();
+      return asJson && typeof asJson === 'object' ? asJson as Record<string, unknown> : {};
+    }
+
+    return typeof value === 'object' ? value as Record<string, unknown> : {};
   }
 }
 

@@ -57,6 +57,11 @@
         "command": "tmexp.collapseAll",
         "title": "Collapse All",
         "icon": "$(collapse-all)"
+      },
+      {
+        "command": "tmexp.preview",
+        "title": "Preview Threat Model",
+        "icon": "$(open-preview)"
       }
     ],
     "views": {
@@ -99,6 +104,11 @@
       ],
       "view/title": [
         {
+          "command": "tmexp.preview",
+          "when": "view == tmexpExplorer && tmexp.canPreviewThreatModel",
+          "group": "navigation@0"
+        },
+        {
           "command": "tmexp.newThreat",
           "when": "view == tmexpExplorer",
           "group": "navigation@1"
@@ -112,6 +122,13 @@
           "command": "tmexp.collapseAll",
           "when": "view == tmexpExplorer",
           "group": "navigation@3"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "tmexp.preview",
+          "when": "resourceExtname =~ /\\.ya?ml$/ && tmexp.canPreviewThreatModel",
+          "group": "navigation@1"
         }
       ]
     }
